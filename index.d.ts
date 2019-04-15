@@ -261,6 +261,8 @@ declare namespace dashjs {
         getAverageThroughput(value: number): void;
         setBufferAheadToKeep(value: number): void;
         getStableBufferTime(): number;
+        setPruneBufferOnSeek(value: boolean): void;
+        getPruneBufferOnSeek(): boolean;
         getBufferTimeAtTopQuality(): number;
         setManifestLoaderRetryAttempts(value: number): void;
         setManifestLoaderRetryInterval(value: number): void;
