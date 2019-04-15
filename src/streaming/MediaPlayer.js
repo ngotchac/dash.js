@@ -1757,6 +1757,36 @@ function MediaPlayer() {
     }
 
     /**
+     * Enable pruning of (non-text) source buffers when seeking.
+     * This is enabled by default, and fixes some playback issues (see [#2342](https://github.com/Dash-Industry-Forum/dash.js/pull/2342)),
+     * however it introduces some inefficiencies in network use.
+     * This can thus be disabled, at your own peril.
+     *
+     * @default true
+     * @param {boolean} value
+     * @memberof module:MediaPlayer
+     * @throws {@link Constants#BAD_ARGUMENT_ERROR BAD_ARGUMENT_ERROR} if called with an invalid argument, not boolean type.
+     * @instance
+     */
+    function setPruneBufferOnSeek(value) {
+        checkParameterType(value, 'boolean');
+        const s = { streaming: { pruneBufferOnSeek: value } };
+        settings.update(s);
+    }
+
+    /**
+     * Returns if pruning is enabled on seek.
+     * It is enabled by default.
+     *
+     * @default true
+     * @memberof module:MediaPlayer
+     * @instance
+     */
+    function getPruneBufferOnSeek() {
+        return mediaPlayerModel.getStableBufferTime();
+    }
+
+    /**
      * The time that the internal buffer target will be set to once playing the top quality.
      * If there are multiple bitrates in your adaptation, and the media is playing at the highest
      * bitrate, then we try to build a larger buffer at the top quality to increase stability
@@ -3264,6 +3294,8 @@ function MediaPlayer() {
         setBufferPruningInterval: setBufferPruningInterval,
         setStableBufferTime: setStableBufferTime,
         getStableBufferTime: getStableBufferTime,
+        setPruneBufferOnSeek: setPruneBufferOnSeek,
+        getPruneBufferOnSeek: getPruneBufferOnSeek,
         setBufferTimeAtTopQuality: setBufferTimeAtTopQuality,
         getBufferTimeAtTopQuality: getBufferTimeAtTopQuality,
         setBufferTimeAtTopQualityLongForm: setBufferTimeAtTopQualityLongForm,

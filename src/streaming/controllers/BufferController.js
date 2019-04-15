@@ -332,12 +332,16 @@ function BufferController(config) {
         if (isBufferingCompleted) {
             seekClearedBufferingCompleted = true;
             isBufferingCompleted = false;
-            //a seek command has occured, reset lastIndex value, it will be set next time that onStreamCompleted will be called.
+            // a seek command has occured, reset lastIndex value, it will be set next time that onStreamCompleted will be called.
             lastIndex = Number.POSITIVE_INFINITY;
         }
         if (type !== Constants.FRAGMENTED_TEXT) {
             // remove buffer after seeking operations
-            pruneAllSafely();
+            if (settings.get().streaming.pruneBufferOnSeek) {
+                pruneAllSafely();
+            } else {
+                pruneOutsideBuffers();
+            }
         } else {
             onPlaybackProgression();
         }
@@ -354,6 +358,15 @@ function BufferController(config) {
             onPlaybackProgression();
         }
         clearBuffers(ranges);
+    }
+
+    // Prune buffer outside of current_time neighbourhood
+    function pruneOutsideBuffers() {
+        const ranges = getAllRangesWithSafetyFactor();
+        if (!ranges || ranges.length === 0) {
+            onPlaybackProgression();
+        }
+        clearBuffers(getClearRanges());
     }
 
     // Get all buffer ranges but a range around current time position
