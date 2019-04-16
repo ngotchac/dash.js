@@ -318,7 +318,7 @@ var CommonEncryption = (function () {
         key: 'getPSSHForKeySystem',
         value: function getPSSHForKeySystem(keySystem, initData) {
             var psshList = CommonEncryption.parsePSSHList(initData);
-            if (psshList.hasOwnProperty(keySystem.uuid.toLowerCase())) {
+            if (keySystem && psshList.hasOwnProperty(keySystem.uuid.toLowerCase())) {
                 return psshList[keySystem.uuid.toLowerCase()];
             }
             return null;
@@ -354,7 +354,7 @@ var CommonEncryption = (function () {
         key: 'parsePSSHList',
         value: function parsePSSHList(data) {
 
-            if (data === null) return [];
+            if (data === null || data === undefined) return [];
 
             var dv = new DataView(data.buffer || data); // data.buffer first for Uint8Array support
             var done = false;
@@ -1043,6 +1043,7 @@ function ProtectionController(config) {
      * @instance
      */
     function getSupportedKeySystemsFromContentProtection(cps) {
+        checkConfig();
         return protectionKeyController.getSupportedKeySystemsFromContentProtection(cps);
     }
 
@@ -1081,7 +1082,7 @@ function ProtectionController(config) {
         } else if (initData) {
             protectionModel.createKeySession(initData, protData, getSessionType(keySystem), cdmData);
         } else {
-            eventBus.trigger(events.KEY_SESSION_CREATED, { data: null, error: new _voDashJSError2['default'](_errorsProtectionErrors2['default'].KEY_SESSION_CREATED_ERROR_CODE, _errorsProtectionErrors2['default'].KEY_SESSION_CREATED_ERROR_MESSAGE + 'Selected key system is ' + keySystem.systemString + '.  needkey/encrypted event contains no initData corresponding to that key system!') });
+            eventBus.trigger(events.KEY_SESSION_CREATED, { data: null, error: new _voDashJSError2['default'](_errorsProtectionErrors2['default'].KEY_SESSION_CREATED_ERROR_CODE, _errorsProtectionErrors2['default'].KEY_SESSION_CREATED_ERROR_MESSAGE + 'Selected key system is ' + (keySystem ? keySystem.systemString : null) + '.  needkey/encrypted event contains no initData corresponding to that key system!') });
         }
     }
 
@@ -1096,6 +1097,7 @@ function ProtectionController(config) {
      * @fires ProtectionController#KeySessionCreated
      */
     function loadKeySession(sessionID, initData) {
+        checkConfig();
         protectionModel.loadKeySession(sessionID, initData, getSessionType(keySystem));
     }
 
@@ -1112,6 +1114,7 @@ function ProtectionController(config) {
      * @fires ProtectionController#KeySessionClosed
      */
     function removeKeySession(sessionToken) {
+        checkConfig();
         protectionModel.removeKeySession(sessionToken);
     }
 
@@ -1126,6 +1129,7 @@ function ProtectionController(config) {
      * @fires ProtectionController#KeySessionClosed
      */
     function closeKeySession(sessionToken) {
+        checkConfig();
         protectionModel.closeKeySession(sessionToken);
     }
 
@@ -1141,6 +1145,7 @@ function ProtectionController(config) {
      * @fires ProtectionController#ServerCertificateUpdated
      */
     function setServerCertificate(serverCertificate) {
+        checkConfig();
         protectionModel.setServerCertificate(serverCertificate);
     }
 
@@ -1155,6 +1160,7 @@ function ProtectionController(config) {
      * @instance
      */
     function setMediaElement(element) {
+        checkConfig();
         if (element) {
             protectionModel.setMediaElement(element);
             eventBus.on(events.NEED_KEY, onNeedKey, this);
@@ -1224,6 +1230,7 @@ function ProtectionController(config) {
      * @instance
      */
     function reset() {
+        checkConfig();
 
         eventBus.off(events.INTERNAL_KEY_MESSAGE, onKeyMessage, this);
         eventBus.off(events.INTERNAL_KEY_STATUS_CHANGED, onKeyStatusChanged, this);
@@ -1654,6 +1661,12 @@ function ProtectionController(config) {
         return protectionKeyController ? protectionKeyController.getKeySystems() : [];
     }
 
+    function setKeySystems(keySystems) {
+        if (protectionKeyController) {
+            protectionKeyController.setKeySystems(keySystems);
+        }
+    }
+
     instance = {
         initializeForMedia: initializeForMedia,
         createKeySession: createKeySession,
@@ -1667,6 +1680,7 @@ function ProtectionController(config) {
         setProtectionData: setProtectionData,
         getSupportedKeySystemsFromContentProtection: getSupportedKeySystemsFromContentProtection,
         getKeySystems: getKeySystems,
+        setKeySystems: setKeySystems,
         stop: stop,
         reset: reset
     };
@@ -1827,6 +1841,19 @@ function ProtectionKeyController() {
     }
 
     /**
+     * Sets the prioritized list of key systems to be supported
+     * by this player.
+     *
+     * @param {Array.<KeySystem>} newKeySystems the new prioritized
+     * list of key systems
+     * @memberof module:ProtectionKeyController
+     * @instance
+     */
+    function setKeySystems(newKeySystems) {
+        keySystems = newKeySystems;
+    }
+
+    /**
      * Returns the key system associated with the given key system string
      * name (i.e. 'org.w3.clearkey')
      *
@@ -1918,19 +1945,13 @@ function ProtectionKeyController() {
                     if (cp.schemeIdUri.toLowerCase() === ks.schemeIdURI) {
                         // Look for DRM-specific ContentProtection
                         var initData = ks.getInitData(cp);
-                        if (!!initData) {
-                            supportedKS.push({
-                                ks: keySystems[ksIdx],
-                                initData: initData,
-                                cdmData: ks.getCDMData(),
-                                sessionId: ks.getSessionId(cp)
-                            });
-                        } else if (this.isClearKey(ks)) {
-                            supportedKS.push({
-                                ks: ks,
-                                initData: null
-                            });
-                        }
+
+                        supportedKS.push({
+                            ks: keySystems[ksIdx],
+                            initData: initData,
+                            cdmData: ks.getCDMData(),
+                            sessionId: ks.getSessionId(cp)
+                        });
                     }
                 }
             }
@@ -2061,6 +2082,7 @@ function ProtectionKeyController() {
         isClearKey: isClearKey,
         initDataEquals: initDataEquals,
         getKeySystems: getKeySystems,
+        setKeySystems: setKeySystems,
         getKeySystemBySystemString: getKeySystemBySystemString,
         getSupportedKeySystemsFromContentProtection: getSupportedKeySystemsFromContentProtection,
         getSupportedKeySystems: getSupportedKeySystems,
@@ -2407,6 +2429,9 @@ function KeySystemPlayReady(config) {
             PSSHData = undefined;
 
         checkConfig();
+        if (!cpData) {
+            return null;
+        }
         // Handle common encryption PSSH
         if ('pssh' in cpData) {
             return _CommonEncryption2['default'].parseInitDataFromContentProtection(cpData, BASE64);
