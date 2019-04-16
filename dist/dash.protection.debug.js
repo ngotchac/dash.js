@@ -1,4 +1,4 @@
-(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}(g.dashjs || (g.dashjs = {})).Protection = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
+(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}(g.dashjs || (g.dashjs = {})).Protection = f()}})(function(){var define,module,exports;return (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(_dereq_,module,exports){
 /**
  * The copyright in this software is being made available under the BSD License,
  * included below. This software may be subject to other third party and contributor
@@ -2283,7 +2283,7 @@ function KeySystemPlayReady(config) {
 
     config = config || {};
     var instance = undefined;
-    var messageFormat = 'utf16';
+    var messageFormat = 'utf-16';
     var BASE64 = config.BASE64;
 
     function checkConfig() {
@@ -2297,7 +2297,7 @@ function KeySystemPlayReady(config) {
             xmlDoc = undefined;
         var headers = {};
         var parser = new DOMParser();
-        var dataview = messageFormat === 'utf16' ? new Uint16Array(message) : new Uint8Array(message);
+        var dataview = messageFormat === 'utf-16' ? new Uint16Array(message) : new Uint8Array(message);
 
         msg = String.fromCharCode.apply(null, dataview);
         xmlDoc = parser.parseFromString(msg, 'application/xml');
@@ -2324,21 +2324,18 @@ function KeySystemPlayReady(config) {
     function getLicenseRequestFromMessage(message) {
         var licenseRequest = null;
         var parser = new DOMParser();
-        var dataview = messageFormat === 'utf16' ? new Uint16Array(message) : new Uint8Array(message);
+        var dataview = messageFormat === 'utf-16' ? new Uint16Array(message) : new Uint8Array(message);
 
         checkConfig();
         var msg = String.fromCharCode.apply(null, dataview);
         var xmlDoc = parser.parseFromString(msg, 'application/xml');
 
-        if (xmlDoc.getElementsByTagName('Challenge')[0]) {
+        if (xmlDoc.getElementsByTagName('PlayReadyKeyMessage')[0]) {
             var Challenge = xmlDoc.getElementsByTagName('Challenge')[0].childNodes[0].nodeValue;
             if (Challenge) {
                 licenseRequest = BASE64.decode(Challenge);
             }
-        } else if (xmlDoc.getElementsByTagName('parsererror').length) {
-            // In case it is not an XML doc, return the message itself
-            // There are CDM implementations of some devices (example: some smartTVs) that
-            // return directly the challenge without wrapping it in an xml doc
+        } else {
             return message;
         }
 
@@ -2454,12 +2451,12 @@ function KeySystemPlayReady(config) {
      * messages using UTF16, while others return them as UTF8.  Use this function
      * to modify the message format to expect when parsing CDM messages.
      *
-     * @param {string} format the expected message format.  Either "utf8" or "utf16".
+     * @param {string} format the expected message format.  Either "utf-8" or "utf-16".
      * @throws {Error} Specified message format is not one of "utf8" or "utf16"
      */
     function setPlayReadyMessageFormat(format) {
-        if (format !== 'utf8' && format !== 'utf16') {
-            throw new Error('Illegal PlayReady message format! -- ' + format);
+        if (format !== 'utf-8' && format !== 'utf-16') {
+            throw new Error('Specified message format is not one of "utf-8" or "utf-16"');
         }
         messageFormat = format;
     }
