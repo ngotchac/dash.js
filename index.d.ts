@@ -149,7 +149,7 @@ declare namespace dashjs {
                 maxBitrate: {
                     audio: number;
                     video: number;
-                };
+                };updateSettin
                 minBitrate: {
                     audio: number;
                     video: number;
@@ -296,7 +296,7 @@ declare namespace dashjs {
         getAverageThroughput(value: number): void;
         keepProtectionMediaKeys(value: boolean): void;
         getSettings(): MediaPlayerSettingClass;
-        updateSettings(settings: MediaPlayerSettingClass);
+        updateSettings(settings: Partial<MediaPlayerSettingClass>);
         resetSettings(): void;
     }
 
