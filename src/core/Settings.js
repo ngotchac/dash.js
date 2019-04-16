@@ -194,10 +194,10 @@ function Settings() {
              * to see automatic bitrate switches but will have a larger buffer which
              * will increase stability.
              * @alias streaming.stableBufferTime
-             * @default -1
+             * @default 12
              * @memberof module:Settings.Schema
              */
-            stableBufferTime: -1,
+            stableBufferTime: 12,
             /**
              * Enable or disable pruning of (non-text) source buffers when seeking.
              * This is enabled by default, and fixes some playback issues (see [#2342](https://github.com/Dash-Industry-Forum/dash.js/pull/2342)),
