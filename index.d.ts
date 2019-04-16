@@ -1,6 +1,14 @@
 export = dashjs;
 export as namespace dashjs;
 
+type DeepPartial<T> = {
+    [P in keyof T]?: T[P] extends Array<infer U>
+        ? Array<DeepPartial<U>>
+        : T[P] extends ReadonlyArray<infer U>
+        ? ReadonlyArray<DeepPartial<U>>
+        : DeepPartial<T[P]>
+};
+
 declare namespace dashjs {
     interface Logger {
         debug(...params: any[]): void;
@@ -296,7 +304,7 @@ declare namespace dashjs {
         getAverageThroughput(value: number): void;
         keepProtectionMediaKeys(value: boolean): void;
         getSettings(): MediaPlayerSettingClass;
-        updateSettings(settings: Partial<MediaPlayerSettingClass>);
+        updateSettings(settings: DeepPartial<MediaPlayerSettingClass>);
         resetSettings(): void;
     }
 
