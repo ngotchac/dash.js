@@ -353,11 +353,13 @@ function BufferController(config) {
 
     // Prune full buffer but what is around current time position
     function pruneAllSafely() {
-        const ranges = getAllRangesWithSafetyFactor();
-        if (!ranges || ranges.length === 0) {
-            onPlaybackProgression();
-        }
-        clearBuffers(ranges);
+        buffer.waitForUpdateEnd(() => {
+            const ranges = getAllRangesWithSafetyFactor();
+            if (!ranges || ranges.length === 0) {
+                onPlaybackProgression();
+            }
+            clearBuffers(ranges);
+        });
     }
 
     // Prune buffer outside of current_time neighbourhood
