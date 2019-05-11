@@ -19123,7 +19123,7 @@ function DashMetrics(config) {
     }
 
     function pushPlayListTraceMetrics(endTime, reason) {
-        if (playListTraceMetricsClosed === false && playListMetrics && playListTraceMetrics) {
+        if (playListTraceMetricsClosed === false && playListMetrics && playListTraceMetrics && playListTraceMetrics.start) {
             var startTime = playListTraceMetrics.start;
             var duration = endTime.getTime() - startTime.getTime();
             playListTraceMetrics.duration = duration;
@@ -28367,8 +28367,13 @@ function PreBufferSink(onAppendedCallback) {
         return false;
     }
 
-    function updateTimestampOffset() {}
-    // Nothing to do
+    function updateTimestampOffset() {
+        // Nothing to do
+    }
+
+    function getBuffer() {
+        return this;
+    }
 
     /**
      * Return the all chunks in the buffer the lie between times start and end.
@@ -28397,6 +28402,10 @@ function PreBufferSink(onAppendedCallback) {
         });
     }
 
+    function waitForUpdateEnd(callback) {
+        callback();
+    }
+
     instance = {
         getAllBufferRanges: getAllBufferRanges,
         append: append,
@@ -28405,7 +28414,9 @@ function PreBufferSink(onAppendedCallback) {
         discharge: discharge,
         reset: reset,
         updateTimestampOffset: updateTimestampOffset,
-        hasDiscontinuitiesAfter: hasDiscontinuitiesAfter
+        hasDiscontinuitiesAfter: hasDiscontinuitiesAfter,
+        waitForUpdateEnd: waitForUpdateEnd,
+        getBuffer: getBuffer
     };
 
     setup();
@@ -28615,13 +28626,13 @@ function SourceBufferSink(mediaSource, mediaInfo, onAppendedCallback, oldBuffer)
         }
         appendQueue.push(chunk);
         if (!isAppendingInProgress) {
-            waitForUpdateEnd(buffer, appendNextInQueue.bind(this));
+            waitForUpdateEnd(appendNextInQueue.bind(this));
         }
     }
 
     function updateTimestampOffset(MSETimeOffset) {
         if (buffer.timestampOffset !== MSETimeOffset && !isNaN(MSETimeOffset)) {
-            waitForUpdateEnd(buffer, function () {
+            waitForUpdateEnd(function () {
                 buffer.timestampOffset = MSETimeOffset;
             });
         }
@@ -28630,13 +28641,13 @@ function SourceBufferSink(mediaSource, mediaInfo, onAppendedCallback, oldBuffer)
     function remove(start, end, forceRemoval) {
         var sourceBufferSink = this;
         // make sure that the given time range is correct. Otherwise we will get InvalidAccessError
-        waitForUpdateEnd(buffer, function () {
+        waitForUpdateEnd(function () {
             try {
                 if (start >= 0 && end > start && (forceRemoval || mediaSource.readyState !== 'ended')) {
                     buffer.remove(start, end);
                 }
                 // updating is in progress, we should wait for it to complete before signaling that this operation is done
-                waitForUpdateEnd(buffer, function () {
+                waitForUpdateEnd(function () {
                     eventBus.trigger(_coreEventsEvents2['default'].SOURCEBUFFER_REMOVE_COMPLETED, {
                         buffer: sourceBufferSink,
                         from: start,
@@ -28694,7 +28705,7 @@ function SourceBufferSink(mediaSource, mediaInfo, onAppendedCallback, oldBuffer)
                             buffer.append(nextChunk.bytes, nextChunk);
                         }
                         // updating is in progress, we should wait for it to complete before signaling that this operation is done
-                        waitForUpdateEnd(buffer, afterSuccess.bind(_this));
+                        waitForUpdateEnd(afterSuccess.bind(_this));
                     }
                 } catch (err) {
                     logger.fatal('SourceBuffer append failed "' + err + '"');
@@ -28755,7 +28766,7 @@ function SourceBufferSink(mediaSource, mediaInfo, onAppendedCallback, oldBuffer)
         if (callbacks.length > 0) {
             var cb = callbacks.shift();
             if (buffer.updating) {
-                waitForUpdateEnd(buffer, cb);
+                waitForUpdateEnd(cb);
             } else {
                 cb();
                 // Try to execute next callback if still not updating
@@ -28781,7 +28792,7 @@ function SourceBufferSink(mediaSource, mediaInfo, onAppendedCallback, oldBuffer)
         logger.error('SourceBufferSink error', mediaInfo.type);
     }
 
-    function waitForUpdateEnd(buffer, callback) {
+    function waitForUpdateEnd(callback) {
         callbacks.push(callback);
 
         if (!buffer.updating) {
@@ -28797,7 +28808,8 @@ function SourceBufferSink(mediaSource, mediaInfo, onAppendedCallback, oldBuffer)
         abort: abort,
         reset: reset,
         updateTimestampOffset: updateTimestampOffset,
-        hasDiscontinuitiesAfter: hasDiscontinuitiesAfter
+        hasDiscontinuitiesAfter: hasDiscontinuitiesAfter,
+        waitForUpdateEnd: waitForUpdateEnd
     };
 
     setup();
@@ -29069,6 +29081,8 @@ function Stream(config) {
 
     function reset() {
 
+        stopEventController();
+
         if (playbackController) {
             playbackController.pause();
         }
@@ -29188,16 +29202,16 @@ function Stream(config) {
 
     function onCurrentTrackChanged(e) {
         if (e.newMediaInfo.streamInfo.id !== streamInfo.id) return;
+        var mediaInfo = e.newMediaInfo;
+        var manifest = manifestModel.getValue();
+
+        adapter.setCurrentMediaInfo(streamInfo.id, mediaInfo.type, mediaInfo);
 
         var processor = getProcessorForMediaInfo(e.newMediaInfo);
         if (!processor) return;
 
         var currentTime = playbackController.getTime();
         logger.info('Stream -  Process track changed at current time ' + currentTime);
-        var mediaInfo = e.newMediaInfo;
-        var manifest = manifestModel.getValue();
-
-        adapter.setCurrentMediaInfo(streamInfo.id, mediaInfo.type, mediaInfo);
 
         logger.debug('Stream -  Update stream controller');
         if (manifest.refreshManifestOnSwitchTrack) {
@@ -29353,7 +29367,7 @@ function Stream(config) {
         filterCodecs(_constantsConstants2['default'].VIDEO);
         filterCodecs(_constantsConstants2['default'].AUDIO);
 
-        if (element === null || element && /^VIDEO$/i.test(element.nodeName)) {
+        if (!element || element && /^VIDEO$/i.test(element.nodeName)) {
             initializeMediaForType(_constantsConstants2['default'].VIDEO, mediaSource);
         }
         initializeMediaForType(_constantsConstants2['default'].AUDIO, mediaSource);
@@ -32016,11 +32030,13 @@ function BufferController(config) {
 
     // Prune full buffer but what is around current time position
     function pruneAllSafely() {
-        var ranges = getAllRangesWithSafetyFactor();
-        if (!ranges || ranges.length === 0) {
-            onPlaybackProgression();
-        }
-        clearBuffers(ranges);
+        buffer.waitForUpdateEnd(function () {
+            var ranges = getAllRangesWithSafetyFactor();
+            if (!ranges || ranges.length === 0) {
+                onPlaybackProgression();
+            }
+            clearBuffers(ranges);
+        });
     }
 
     // Prune buffer outside of current_time neighbourhood
@@ -52102,7 +52118,7 @@ function TextTracks() {
             return;
         }
 
-        if (!captionData || !Array.isArray(captionData.length)) {
+        if (!Array.isArray(captionData) || captionData.length === 0) {
             return;
         }
 
@@ -52152,6 +52168,7 @@ function TextTracks() {
                             if (divs[i].id === this.cueID) {
                                 logger.debug('Cue exit id:' + divs[i].id);
                                 captionContainer.removeChild(divs[i]);
+                                --i;
                             }
                         }
                     }
